@@ -37,9 +37,34 @@ DDP_CATEGORIES = [
 ]
 
 
-def who_youve_followed_to_df(facebook_zip: str) -> pd.DataFrame:
+""" def who_youve_followed_to_df(facebook_zip: str) -> pd.DataFrame:
 
     b = eh.extract_file_from_zip(facebook_zip, "who_you_ve_followed.json")
+    d = eh.read_json_from_bytes(b)
+
+    out = pd.DataFrame()
+    datapoints = []
+
+    try:
+        items = d["following_v3"]  # pyright: ignore
+        for item in items:
+            datapoints.append((
+                eh.fix_latin1_string(item.get("name", "")),
+                eh.epoch_to_iso(item.get("timestamp", {}))
+            ))
+
+        out = pd.DataFrame(datapoints, columns=["Name", "Timestamp"]) #pyright: ignore
+
+    except Exception as e:
+        logger.error("Exception caught: %s", e)
+
+    return out """
+
+# New because of the name of the file (temp, needs better solution)
+
+def who_youve_followed_to_df(facebook_zip: str) -> pd.DataFrame:
+
+    b = eh.extract_file_from_zip(facebook_zip, "who_you've_followed.json")
     d = eh.read_json_from_bytes(b)
 
     out = pd.DataFrame()
@@ -250,7 +275,7 @@ def ads_interests_to_df(facebook_zip: str) -> pd.DataFrame:
     return out
 
 
-def recently_viewed_to_df(facebook_zip: str) -> pd.DataFrame:
+""" def recently_viewed_to_df(facebook_zip: str) -> pd.DataFrame:
     b = eh.extract_file_from_zip(facebook_zip, "recently_viewed.json")
     d = eh.read_json_from_bytes(b)
 
@@ -286,6 +311,57 @@ def recently_viewed_to_df(facebook_zip: str) -> pd.DataFrame:
     except Exception as e:
         logger.error("Exception caught: %s", e)
 
+    return out """
+
+def recently_viewed_to_df(facebook_zip: str) -> pd.DataFrame:
+    b = eh.extract_file_from_zip(facebook_zip, "recently_viewed.json")
+    d = eh.read_json_from_bytes(b)
+    out = pd.DataFrame()
+    datapoints = []
+    try:
+        items = d["recently_viewed"]  # pyright: ignore
+        for item in items:
+            # Skip Marketplace Interactions
+            if item.get("name", "") == "Marketplace Interactions":
+                continue
+            
+            if "entries" in item:
+                for entry in item["entries"]:
+                    # Extract watch_time if available (for categories like "Time Spent")
+                    watch_time = entry.get("data", {}).get("watch_time", "")
+                    
+                    datapoints.append((
+                        eh.fix_latin1_string(item.get("name", "")),
+                        eh.fix_latin1_string(entry.get("data", {}).get("name", "")),
+                        entry.get("data", {}).get("uri", ""),
+                        eh.epoch_to_iso(entry.get("timestamp", "")),
+                        watch_time
+                    ))
+            
+            # The nesting goes deeper
+            if "children" in item:
+                for child in item["children"]:
+                    # Skip Marketplace-related children as well
+                    if "Marketplace" in child.get("name", ""):
+                        continue
+                    
+                    for entry in child["entries"]:
+                        # Extract watch_time or watch_position_seconds if available
+                        watch_time = entry.get("data", {}).get("watch_time", "")
+                        if not watch_time:
+                            watch_time = entry.get("data", {}).get("watch_position_seconds", "")
+                        
+                        datapoints.append((
+                            eh.fix_latin1_string(child.get("name", "")),
+                            eh.fix_latin1_string(entry.get("data", {}).get("name", "")),
+                            entry.get("data", {}).get("uri", ""),
+                            eh.epoch_to_iso(entry.get("timestamp", "")),
+                            watch_time
+                        ))
+        
+        out = pd.DataFrame(datapoints, columns=["Watched", "Name", "Link", "Date", "Watch Time (seconds)"])  # pyright: ignore
+    except Exception as e:
+        logger.error("Exception caught: %s", e)
     return out
 
 
@@ -566,11 +642,9 @@ def comments_to_df(facebook_zip: str) -> pd.DataFrame:
     return out
 
 
-def likes_and_reactions_to_df(instagram_zip: str) -> pd.DataFrame:
-    """
-    likes_and_reactions_x
-    """
-
+""" def likes_and_reactions_to_df(instagram_zip: str) -> pd.DataFrame:
+    # likes_and_reactions_x
+    
     out = pd.DataFrame()
     datapoints = []
     i = 1
@@ -600,9 +674,108 @@ def likes_and_reactions_to_df(instagram_zip: str) -> pd.DataFrame:
 
     out = pd.DataFrame(datapoints, columns=["Title", "Reaction", "Timestamp"]) #pyright: ignore
 
+    return out """
+
+# In this case, we need to keep the URL and use the Name to establish which might be public
+
+def likes_and_reactions_to_df(facebook_zip: str) -> pd.DataFrame:
+    """
+    Extract likes and reactions data from Facebook export
+    Returns DataFrame with Timestamp, Media, Reaction, URL, and Name columns
+    """
+
+    out = pd.DataFrame()
+    datapoints = []
+    i = 1
+
+    # First file has no number suffix
+    b = eh.extract_file_from_zip(facebook_zip, "likes_and_reactions.json")
+    d = eh.read_json_from_bytes(b)
+
+    if d:
+        try:
+            for item in d:
+                # Extract timestamp directly
+                timestamp = eh.epoch_to_iso(item.get("timestamp"))
+                
+                # Extract media count
+                media_list = item.get("media", [])
+                media = str(len(media_list)) if media_list else "0"
+                
+                # Extract reaction, URL, and name from label_values
+                reaction = None
+                url = None
+                name = None
+                label_values = item.get("label_values", [])
+                
+                for label_item in label_values:
+                    if label_item.get("label") == "Reaction":
+                        reaction = eh.fix_latin1_string(label_item.get("value"))
+                    elif label_item.get("label") == "URL":
+                        url = label_item.get("value")
+                    elif label_item.get("label") == "Name":
+                        name = eh.fix_latin1_string(label_item.get("value"))
+
+                datapoints.append((
+                    timestamp,
+                    media,
+                    reaction,
+                    url,
+                    name
+                ))
+
+        except Exception as e:
+            logger.error("Exception caught: %s", e)
+            return pd.DataFrame()
+
+    # Now process numbered files
+    while True:
+        b = eh.extract_file_from_zip(facebook_zip, f"likes_and_reactions_{i}.json")
+        d = eh.read_json_from_bytes(b)
+
+        if not d:
+            break
+
+        try:
+            for item in d:
+                # Extract timestamp directly
+                timestamp = eh.epoch_to_iso(item.get("timestamp"))
+                
+                # Extract media count
+                media_list = item.get("media", [])
+                media = str(len(media_list)) if media_list else "0"
+                
+                # Extract reaction, URL, and name from label_values
+                reaction = None
+                url = None
+                name = None
+                label_values = item.get("label_values", [])
+                
+                for label_item in label_values:
+                    if label_item.get("label") == "Reaction":
+                        reaction = eh.fix_latin1_string(label_item.get("value"))
+                    elif label_item.get("label") == "URL":
+                        url = label_item.get("value")
+                    elif label_item.get("label") == "Name":
+                        name = eh.fix_latin1_string(label_item.get("value"))
+
+                datapoints.append((
+                    timestamp,
+                    media,
+                    reaction,
+                    url,
+                    name
+                ))
+
+            i += 1
+
+        except Exception as e:
+            logger.error("Exception caught: %s", e)
+            return pd.DataFrame()
+
+    out = pd.DataFrame(datapoints, columns=["Timestamp", "Media", "Reaction", "URL", "Name"])
+
     return out
-
-
 
 def your_comment_active_days_to_df(facebook_zip: str) -> pd.DataFrame:
     b = eh.extract_file_from_zip(facebook_zip, "your_comment_active_days.json")
@@ -695,8 +868,37 @@ def your_posts_check_ins_to_df(facebook_zip: str) -> pd.DataFrame:
 
     return out
 
+def filter_likes_by_follows(likes_df: pd.DataFrame, follows_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Filter likes and reactions to include those where:
+    - The Name is in the follows list, OR
+    - The URL contains "groups"
+    
+    Args:
+        likes_df: DataFrame from likes_and_reactions_to_df()
+        follows_df: DataFrame with follows data containing 'Name' column
+    
+    Returns:
+        Filtered DataFrame with likes/reactions to followed accounts or group posts
+    """
+    
+    if likes_df.empty or follows_df.empty:
+        return pd.DataFrame()
+    
+    # Get set of followed names for efficient lookup
+    followed_names = set(follows_df['Name'].dropna())
+    
+    # Create boolean masks
+    is_followed = likes_df['Name'].isin(followed_names)
+    is_group = likes_df['URL'].str.contains('groups', na=False)
+    
+    # Filter to include rows that match either condition (OR)
+    filtered_df = likes_df[is_followed | is_group].copy()
+    
+    return filtered_df
 
-def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
+
+""" def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_who_youve_followed",
@@ -1019,6 +1221,36 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
             description=props.Translatable({
                 "en": "This table lists the Facebook Pages that you administer.",
                 "nl": "Deze tabel toont de Facebookpagina's die je beheert.",
+            }),
+        ),
+    ]
+    return [table for table in tables if not table.data_frame.empty] """
+
+def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
+    tables = [
+        d3i_props.PropsUIPromptConsentFormTableViz(
+            id="facebook_recently_viewed",
+            data_frame=recently_viewed_to_df(facebook_zip),
+            title=props.Translatable({
+                "en": "Facebook items you recently viewed",
+                "nl": "Facebook items die je recentelijk hebt bekeken",
+            }),
+            description=props.Translatable({
+                "en": "This table shows the Facebook posts, videos, and other items you have recently viewed.",
+                "nl": "Deze tabel toont de Facebook-posts, video's en andere items die je recentelijk hebt bekeken.",
+            }),
+        ),
+        d3i_props.PropsUIPromptConsentFormTableViz(
+            id="facebook_likes_and_reactions",
+            # data_frame=likes_and_reactions_to_df(facebook_zip),
+            data_frame=filter_likes_by_follows(likes_and_reactions_to_df(facebook_zip), who_youve_followed_to_df(facebook_zip)),
+            title=props.Translatable({
+                "en": "Likes and reactions on Facebook",
+                "nl": "Likes en reacties op Facebook",
+            }),
+            description=props.Translatable({
+                "en": "This table shows your likes and reactions to posts, comments, and other content on Facebook.",
+                "nl": "Deze tabel toont je likes en reacties op berichten, commentaren en andere content op Facebook.",
             }),
         ),
     ]
