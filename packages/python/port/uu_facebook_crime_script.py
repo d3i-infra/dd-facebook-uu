@@ -14,18 +14,18 @@ import port.platforms.facebook as fb
 logger = logging.getLogger(__name__)
 
 SUBMIT_FILE_HEADER = props.Translatable({
-    "en": "Select a random zipfile of choice", 
-    "nl": "Selecteer een willekeurige zipfile",
+    "en": "Select a Facebook zip_file in JSON format", 
+    "nl": "Selecteer een Facebook zipfile in JSON format",
 })
 
 REVIEW_DATA_HEADER = props.Translatable({
-    "en": "Your random zip contents", 
-    "nl": "De gegevens in uw zip"
+    "en": "Your extracted Facebook zip contents", 
+    "nl": "De gegevens die uit uw Facebook zip zijn gehaald"
 })
 
 REVIEW_DATA_DESCRIPTION = props.Translatable({
-    "en": "Below you will find meta data about the contents of the zip file you submitted. Please review the data carefully and remove any information you do not wish to share. If you would like to share this data, click on the 'Yes, share for research' button at the bottom of this page. By sharing this data, you contribute to research <insert short explanation about your research here>.",
-    "nl": "Hieronder ziet u gegevens over de zip die u heeft ingediend. Bekijk de gegevens zorgvuldig, en verwijder de gegevens die u niet wilt delen. Als u deze gegevens wilt delen, klik dan op de knop 'Ja, deel voor onderzoek' onderaan deze pagina. Door deze gegevens te delen draagt u bij aan onderzoek over <korte zin over het onderzoek>."
+    "en": "Below you will find the data extracted from your Facebook data package. Please review the data carefully and remove any information you do not wish to share. If you would like to share this data, click on the 'Yes, share for research' button at the bottom of this page. By sharing this data, you contribute to research <insert short explanation about your research here>.",
+    "nl": "Hieronder ziet u gegevens die komen uit uw Facebook data package. Bekijk de gegevens zorgvuldig, en verwijder de gegevens die u niet wilt delen. Als u deze gegevens wilt delen, klik dan op de knop 'Ja, deel voor onderzoek' onderaan deze pagina. Door deze gegevens te delen draagt u bij aan onderzoek over <korte zin over het onderzoek>."
 })
 
 RETRY_HEADER = props.Translatable({
@@ -35,7 +35,7 @@ RETRY_HEADER = props.Translatable({
 
 
 def process(session_id: str):
-    platform_name = "Platform of interest"
+    platform_name = "Facebook"
 
     # Start of the data donation flow
     while True:

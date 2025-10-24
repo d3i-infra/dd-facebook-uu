@@ -31,7 +31,7 @@ DDP_CATEGORIES = [
         ddp_filetype=DDPFiletype.JSON,
         language=Language.EN,
         known_files=[
-"subscription_for_no_ads.json", "other_categories_used_to_reach_you.json", "ads_feedback_activity.json", "ads_personalization_consent.json", "advertisers_you've_interacted_with.json", "advertisers_using_your_activity_or_information.json", "story_views_in_past_7_days.json", "ad_preferences.json", "groups_you've_searched_for.json", "your_search_history.json", "primary_public_location.json", "timezone.json", "primary_location.json", "your_privacy_jurisdiction.json", "people_and_friends.json", "ads_interests.json", "notifications.json", "notification_of_meta_privacy_policy_update.json", "recently_viewed.json", "recently_visited.json", "your_avatar.json", "meta_avatars_post_backgrounds.json", "contacts_sync_settings.json", "timezone.json", "autofill_information.json", "profile_information.json", "profile_update_history.json", "your_transaction_survey_information.json", "your_recently_followed_history.json", "your_recently_used_emojis.json", "no-data.txt", "navigation_bar_activity.json", "pages_and_profiles_you_follow.json", "pages_you've_liked.json", "your_saved_items.json", "fundraiser_posts_you_likely_viewed.json", "your_fundraiser_donations_information.json", "your_event_responses.json", "event_invitations.json", "your_event_invitation_links.json", "likes_and_reactions_1.json", "your_uncategorized_photos.json", "payment_history.json", "no-data.txt", "your_answers_to_membership_questions.json", "your_group_membership_activity.json", "your_contributions.json", "group_posts_and_comments.json", "your_comments_in_groups.json", "instant_games.json", "your_page_or_groups_badges.json", "instant_games_usage_data.json", "no-data.txt", "who_you've_followed.json", "people_you_may_know.json", "received_friend_requests.json", "your_friends.json",
+"subscription_for_no_ads.json", "other_categories_used_to_reach_you.json", "ads_feedback_activity.json", "ads_personalization_consent.json", "advertisers_you've_interacted_with.json", "advertisers_using_your_activity_or_information.json", "story_views_in_past_7_days.json", "ad_preferences.json", "groups_you've_searched_for.json", "your_search_history.json", "primary_public_location.json", "timezone.json", "primary_location.json", "your_privacy_jurisdiction.json", "people_and_friends.json", "ads_interests.json", "notifications.json", "notification_of_meta_privacy_policy_update.json", "recently_viewed.json", "recently_visited.json", "your_avatar.json", "meta_avatars_post_backgrounds.json", "contacts_sync_settings.json", "timezone.json", "autofill_information.json", "profile_information.json", "profile_update_history.json", "your_transaction_survey_information.json", "your_recently_followed_history.json", "your_recently_used_emojis.json", "no-data.txt", "navigation_bar_activity.json", "pages_and_profiles_you_follow.json", "pages_you've_liked.json", "your_saved_items.json", "fundraiser_posts_you_likely_viewed.json", "your_fundraiser_donations_information.json", "your_event_responses.json", "event_invitations.json", "your_event_invitation_links.json", "likes_and_reactions_1.json", "your_uncategorized_photos.json", "payment_history.json", "no-data.txt", "your_answers_to_membership_questions.json", "your_group_membership_activity.json", "your_contributions.json", "group_posts_and_comments.json", "your_comments_in_groups.json", "instant_games.json", "your_page_or_groups_badges.json", "instant_games_usage_data.json", "no-data.txt", "who_you've_followed.json", "people_you_may_know.json", "received_friend_requests.json", "your_friends.json", "who_you've_followed.json",
         ],
     ),
 ]
@@ -868,6 +868,35 @@ def your_posts_check_ins_to_df(facebook_zip: str) -> pd.DataFrame:
 
     return out
 
+#def filter_likes_by_follows(likes_df: pd.DataFrame, follows_df: pd.DataFrame) -> pd.DataFrame:
+#    """
+#    Filter likes and reactions to include those where:
+#    - The Name is in the follows list, OR
+#    - The URL contains "groups"
+#    
+#    Args:
+#        likes_df: DataFrame from likes_and_reactions_to_df()
+#        follows_df: DataFrame with follows data containing 'Name' column
+#    
+#    Returns:
+#        Filtered DataFrame with likes/reactions to followed accounts or group posts
+#    """
+#    
+#    if likes_df.empty or follows_df.empty:
+#        return pd.DataFrame()
+#    
+#    # Get set of followed names for efficient lookup
+#    followed_names = set(follows_df['Name'].dropna())
+#    
+#    # Create boolean masks
+#    is_followed = likes_df['Name'].isin(followed_names)
+#    is_group = likes_df['URL'].str.contains('groups', na=False)
+#    
+#    # Filter to include rows that match either condition (OR)
+#    filtered_df = likes_df[is_followed | is_group].copy()
+#    
+#    return filtered_df
+
 def filter_likes_by_follows(likes_df: pd.DataFrame, follows_df: pd.DataFrame) -> pd.DataFrame:
     """
     Filter likes and reactions to include those where:
@@ -895,8 +924,10 @@ def filter_likes_by_follows(likes_df: pd.DataFrame, follows_df: pd.DataFrame) ->
     # Filter to include rows that match either condition (OR)
     filtered_df = likes_df[is_followed | is_group].copy()
     
+    # Reset index to avoid any indexing issues
+    filtered_df = filtered_df.reset_index(drop=True)
+    
     return filtered_df
-
 
 """ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
     tables = [
@@ -1226,7 +1257,15 @@ def filter_likes_by_follows(likes_df: pd.DataFrame, follows_df: pd.DataFrame) ->
     ]
     return [table for table in tables if not table.data_frame.empty] """
 
+# landr = likes_and_reactions_to_df(facebook_zip)
+
 def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
+    
+    landr = likes_and_reactions_to_df(facebook_zip)
+    follows = who_youve_followed_to_df(facebook_zip)
+
+    landr_filter = filter_likes_by_follows(landr, follows)
+
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_recently_viewed",
@@ -1243,7 +1282,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_likes_and_reactions",
             # data_frame=likes_and_reactions_to_df(facebook_zip),
-            data_frame=filter_likes_by_follows(likes_and_reactions_to_df(facebook_zip), who_youve_followed_to_df(facebook_zip)),
+            data_frame=landr_filter,
             title=props.Translatable({
                 "en": "Likes and reactions on Facebook",
                 "nl": "Likes en reacties op Facebook",
@@ -1253,6 +1292,18 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
                 "nl": "Deze tabel toont je likes en reacties op berichten, commentaren en andere content op Facebook.",
             }),
         ),
+#       d3i_props.PropsUIPromptConsentFormTableViz(
+#            id="facebook_who_youve_followed",
+#            data_frame=follows,
+#            title=props.Translatable({
+#                "en": "Who you follow",
+#                "nl": "Wie je volgt",
+#            }),
+#            description=props.Translatable({
+#                "en": "This table shows the Facebook profiles and pages you currently follow.",
+#                "nl": "Deze tabel toont de Facebook-profielen en -pagina's die je momenteel volgt.",
+#            }),
+#        ),
     ]
     return [table for table in tables if not table.data_frame.empty]
 
