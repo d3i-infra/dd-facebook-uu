@@ -14,7 +14,7 @@ import port.platforms.facebook as fb
 logger = logging.getLogger(__name__)
 
 SUBMIT_FILE_HEADER = props.Translatable({
-    "en": "Select a Facebook zipfile in JSON format", 
+    "en": "Select a Facebook file", 
     "nl": "Selecteer een Facebook zipfile in JSON format",
 })
 
