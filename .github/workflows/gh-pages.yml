@@ -54,6 +54,8 @@ jobs:
 
       - name: Build App
         run: pnpm run build
+        env:
+          NODE_ENV: development
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
